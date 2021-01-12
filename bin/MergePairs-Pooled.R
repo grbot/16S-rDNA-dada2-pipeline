@@ -7,11 +7,12 @@ option_list = list(
     make_option(c("--errRev"), type="character", default=NULL, help="Reverse RDS file"),
     make_option(c("--cpus"), type="numeric", , default=1, help="cpus"),
     make_option(c("--pool"), type="character", help="Pooling"),
-
     make_option(c("--minOverlap"), type="numeric", help="Min overlap"),
     make_option(c("--maxMismatch"), type="numeric", help="Max mismatch"),
     make_option(c("--trimOverhang"), default=FALSE, action="store_true", help="Trim overhanging sequence if overlapping"),
-    make_option(c("--justConcatenate"), default=FALSE, action="store_true", help="Just concatenate sequences")
+    make_option(c("--justConcatenate"), default=FALSE, action="store_true", help="Just concatenate sequences"),
+    make_option(c("--minMergedLen"), type="numeric", help="Minimum merged length to retain"),
+    make_option(c("--maxMergedLen"), type="numeric", help="Maximum merged length to retain")
 )
 
 opt <- parse_args(OptionParser(option_list=option_list))
@@ -58,6 +59,10 @@ saveRDS(derepRs, "all.derepRs.RDS")
 # go ahead and make seqtable
 seqtab <- makeSequenceTable(mergers)
 
-# seqtab <- seqtab[,nchar(colnames(seqtab)) >= ${params.minLen}]
+if (opt$minMergedLen | opt$maxMergedLen) {
+    seqlens <- nchar(getSequences(seqtab))
+    maxLen <- if(opt$maxMergedLen == 0) max(seqlens) else opt$maxMergedLen
+    seqtab <- seqtab[,seqlens >= opt$minMergedLen & seqlens <= maxLen]
+}
 
 saveRDS(seqtab, "seqtab.RDS")

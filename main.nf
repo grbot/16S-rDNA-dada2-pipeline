@@ -597,6 +597,8 @@ if (params.pool == "T" || params.pool == 'pseudo') {
             --cpus ${task.cpus} \\
             --minOverlap ${params.minOverlap} \\
             --maxMismatch ${params.maxMismatch} \\
+            --minMergedLen ${params.minMergedLen} \\
+            --maxMergedLen ${params.maxMergedLen} \\                        
             --trimOverhang ${params.trimOverhang} \\
             --justConcatenate ${params.justConcatenate} \\
             --rescueUnmerged ${params.rescueUnmerged}
@@ -609,6 +611,7 @@ if (params.pool == "T" || params.pool == 'pseudo') {
             --cpus ${task.cpus} \\
             --minOverlap ${params.minOverlap} \\
             --maxMismatch ${params.maxMismatch} \\
+            --maxMergedLen ${params.maxMergedLen} \\                                    
             --trimOverhang ${params.trimOverhang} \\
             --justConcatenate ${params.justConcatenate}
         """
