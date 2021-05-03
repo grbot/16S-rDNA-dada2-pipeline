@@ -641,7 +641,103 @@ if (params.reference) {
             saveRDS(boots, "bootstrap_final.RDS")
             """
         }
+    } else if (params.taxassignment == "q2-feature-classifier")
+        if (!params.toQIIME) {
+            exit 1, "To use q2-feature-classifier, set toQIIME to true"
+        }
+        process TaxonomyQ2FC_PrepAndRun {
+            tag { "TaxonomyQ2FC_Prep" }
+//             publishDir "${params.outdir}/dada2-Chimera-Taxonomy", mode: "copy", overwrite: true
 
+            input:
+            file seqtab from featuretableToQ2FC
+//             file ref from refFile // this needs to be a database from the IDTAXA site
+
+            output:
+//             file "tax_final.RDS" into taxFinal,taxTableToTable
+//             file "bootstrap_final.RDS" into bootstrapFinal
+
+            when:
+            params.precheck == false
+
+            script:
+            """
+            #!/usr/bin/env Rscript
+            library(dada2)
+            packageVersion("dada2")
+
+            seqtab <- readRDS("${st}")
+
+            # Assign taxonomy
+            tax <- assignTaxonomy(seqtab, "${ref}",
+                                    multithread=${task.cpus},
+                                    tryRC = TRUE,
+                                    outputBootstraps = TRUE,
+                                    verbose = TRUE)
+            boots <- tax\$boot
+
+            tax <- addSpecies(tax\$tax, "${sp}",
+                             tryRC = TRUE,
+                             verbose = TRUE)
+
+            rownames(tax) <- colnames(seqtab)
+
+            # Write original data
+            saveRDS(tax, "tax_final.RDS")
+            saveRDS(boots, "bootstrap_final.RDS")
+            """
+
+
+            when:
+            params.precheck == false
+
+            script:
+            """
+            #!/usr/bin/env Rscript
+            library(dada2)
+            library(DECIPHER)
+            packageVersion("DECIPHER")
+
+            seqtab <- readRDS("${st}")
+
+            # Create a DNAStringSet from the ASVs
+            dna <- DNAStringSet(getSequences(seqtab))
+
+            # load database; this should be a RData file
+            load("${refFile}")
+
+            ids <- IdTaxa(dna, trainingSet,
+                strand="both",
+                processors=${task.cpus},
+                verbose=TRUE)
+            # ranks of interest
+            ranks <- c("domain", "phylum", "class", "order", "family", "genus", "species")
+            saveRDS(ids, 'raw_idtaxa.RDS')
+
+            # Convert the output object of class "Taxa" to a matrix analogous to the output from assignTaxonomy
+            taxid <- t(sapply(ids, function(x) {
+                    m <- match(ranks, x\$rank)
+                    taxa <- x\$taxon[m]
+                    taxa[startsWith(taxa, "unclassified_")] <- NA
+                    taxa
+            }))
+            colnames(taxid) <- ranks
+            rownames(taxid) <- getSequences(seqtab)
+
+            boots <- t(sapply(ids, function(x) {
+                    m <- match(ranks, x\$rank)
+                    bs <- x\$confidence[m]
+                    bs
+            }))
+            colnames(boots) <- ranks
+            rownames(boots) <- getSequences(seqtab)
+
+            # Write to disk
+            saveRDS(taxid, "tax_final.RDS")
+            saveRDS(boots, "bootstrap_final.RDS")
+            """
+        }
+    
     } else if (params.taxassignment) {
         exit 1, "Unknown taxonomic assignment method set: ${params.taxassignment}"
     } else {
@@ -722,7 +818,7 @@ process GenerateSeqTables {
     file st from seqTableToTable
 
     output:
-    file "seqtab_final.simple.qiime2.txt" into featuretableToQIIME2
+    file "seqtab_final.simple.qiime2.txt" into featuretableToQ2FC, featuretableToQIIME2
     file "*.txt"
 
     when:
